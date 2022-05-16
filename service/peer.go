@@ -5,6 +5,7 @@ import (
 	"context"
 	"math/rand"
 	"net"
+	"sync/atomic"
 	"time"
 
 	"github.com/KevinCaiqimin/log"
@@ -22,6 +23,9 @@ type Peer struct {
 
 	stat map[int]int64
 }
+
+var ts int64
+var cnt int64
 
 func (p *Peer) addr() string {
 	return p.conn.RemoteAddr().String()
@@ -49,6 +53,15 @@ func (c *Peer) response(sessid int, msg string, start_nano int64) {
 	elapse_nano := time.Now().UnixNano() - start_nano
 	log.Info("elapse=%vms", elapse_nano/1000/1000)
 	delete(c.stat, sessid)
+
+	now := time.Now().Unix()
+	if atomic.LoadInt64(&ts) != now {
+		log.Info("qps=%d", atomic.LoadInt64(&cnt))
+		atomic.SwapInt64(&ts, now)
+		atomic.SwapInt64(&cnt, 0)
+	} else {
+		atomic.AddInt64(&cnt, 1)
+	}
 }
 
 func (c *Peer) request() {
@@ -79,6 +92,7 @@ func (c *Peer) request() {
 	if data == nil || err != nil {
 		return
 	}
+	c.sz = 0
 	sessid, _, err := pack.Unpack(data)
 	if err != nil {
 		log.Error("dest=%v unpack data error=%v", c.addr(), err)

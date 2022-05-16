@@ -32,13 +32,8 @@ func Pack(sessid int, msg []byte) ([]byte, error) {
 func Unpack(b []byte) (int, []byte, error) {
 	buf := bytes.NewBuffer(b)
 
-	var sz int32
-	err := binary.Read(buf, binary.BigEndian, &sz)
-	if err != nil {
-		return 0, nil, err
-	}
 	var sessid int32
-	err = binary.Read(buf, binary.BigEndian, &sessid)
+	err := binary.Read(buf, binary.BigEndian, &sessid)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -46,7 +41,7 @@ func Unpack(b []byte) (int, []byte, error) {
 }
 
 func ReadSize(buf *bytes.Buffer) (int, error) {
-	if buf.Len() < int2bytes_len+int2bytes_len {
+	if buf.Len() < int2bytes_len {
 		return 0, nil
 	}
 	var sz int32

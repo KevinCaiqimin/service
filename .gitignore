@@ -1,1 +1,4 @@
 serv
+*.log
+*.log.*
+.vscode

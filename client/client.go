@@ -5,6 +5,7 @@ import (
 	"context"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/KevinCaiqimin/log"
@@ -25,6 +26,9 @@ type Client struct {
 	lock sync.Mutex
 	stat map[int]int64
 }
+
+var ts int64
+var cnt int64
 
 func (c *Client) new_session_id() int {
 	c.sessid++
@@ -70,6 +74,15 @@ func (c *Client) send_msg(msg string) {
 		}
 	}
 	c.set_stat(sessid, start_nano)
+
+	now := time.Now().Unix()
+	if atomic.LoadInt64(&ts) != now {
+		log.Info("qps=%d", atomic.LoadInt64(&cnt))
+		atomic.SwapInt64(&ts, now)
+		atomic.SwapInt64(&cnt, 0)
+	} else {
+		atomic.AddInt64(&cnt, 1)
+	}
 }
 
 func (c *Client) recv_msg() {
@@ -97,6 +110,7 @@ func (c *Client) recv_msg() {
 	if data == nil || err != nil {
 		return
 	}
+	c.sz = 0
 	sessid, _, err := pack.Unpack(data)
 	if err != nil {
 		log.Error("dest=%v unpack data error=%v", c.addr, err)
@@ -127,7 +141,7 @@ func (c *Client) Start(ctx context.Context) {
 				return
 			default:
 				c.send_msg("ping")
-				time.Sleep(c.interval)
+				time.Sleep(time.Millisecond * 500)
 			}
 		}
 	}()
