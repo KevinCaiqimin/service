@@ -1,0 +1,1 @@
+./serv -app=client -cli_num=12 -log=console
