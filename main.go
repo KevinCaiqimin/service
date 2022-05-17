@@ -25,6 +25,14 @@ func main() {
 
 	ctx, cancel_func := context.WithCancel(context.Background())
 
+	// login_mod := &login.LoginMod{}
+	// router.Reg(login_mod)
+	// m := make(map[string]interface{})
+	// m["acc"] = "123"
+	// m["pwd"] = "123"
+	// js_body, _ := json.Marshal(m)
+	// router.Call("Login", string(js_body))
+
 	switch *app {
 	case "client":
 		for i := 0; i < *cli_num; i++ {

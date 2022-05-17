@@ -43,7 +43,11 @@ func Call(name string, json_data string) ([]byte, error) {
 	args := make([]reflect.Value, tp.NumIn())
 	for i := 0; i < tp.NumIn(); i++ {
 		arg_tp := tp.In(i)
+		ele := arg_tp.Elem()
 		arg_name := arg_tp.Name()
+		kind := arg_tp.Kind()
+		kname := kind.String()
+		fmt.Println(kname, ele)
 		switch arg_tp.Kind() {
 		case reflect.Int:
 			args[i] = reflect.ValueOf(js_v.GetInt(arg_name))
@@ -52,7 +56,8 @@ func Call(name string, json_data string) ([]byte, error) {
 		case reflect.Struct:
 			args[i] = parse_object(arg_tp, js_v.Get(arg_name))
 		default:
-			return nil, fmt.Errorf("method=%v, param=%s unsupported arg type %v", name, arg_name, arg_tp.String())
+			fmt.Println(kname, arg_name, arg_tp)
+			// return nil, fmt.Errorf("method=%v, param=%s unsupported arg type %v", name, arg_name, arg_tp.String())
 		}
 	}
 	ret := mt.Func.Call(args)

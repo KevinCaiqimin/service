@@ -2,3 +2,4 @@ serv
 *.log
 *.log.*
 .vscode
+*.exe
