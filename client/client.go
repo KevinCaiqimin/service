@@ -44,6 +44,7 @@ func (c *Client) new_session_id() int {
 	return c.sessid
 }
 
+/*
 func (c *Client) set_stat(k int, v int64) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -62,7 +63,7 @@ func (c *Client) get_stat(k int) (int64, bool) {
 	v, ok := c.stat[k]
 	return v, ok
 }
-
+*/
 func (c *Client) send_msg(msg string) {
 	start_nano := time.Now().UnixNano()
 	msg = fmt.Sprintf("%d", start_nano)
@@ -72,10 +73,12 @@ func (c *Client) send_msg(msg string) {
 		log.Error("dest=%v, pack message error=%v", c.addr, err)
 		return
 	}
+	c.conn.Close() //TODO TEST
 	k := 0
 	for {
 		n, err := c.conn.Write(bb[k:])
 		if err != nil {
+			log.Error("发送数据错误：%v", err)
 			c.connted = false
 		}
 		k += n
@@ -83,7 +86,7 @@ func (c *Client) send_msg(msg string) {
 			break
 		}
 	}
-	c.set_stat(sessid, start_nano)
+	// c.set_stat(sessid, start_nano)
 
 	now := time.Now().Unix()
 	if atomic.LoadInt64(&ts) != now {
@@ -92,6 +95,51 @@ func (c *Client) send_msg(msg string) {
 		atomic.SwapInt64(&cnt, 0)
 	} else {
 		atomic.AddInt64(&cnt, 1)
+	}
+}
+
+func (c *Client) proc_buf() {
+	for {
+		if c.sz == 0 {
+			s, err := pack.ReadSize(c.buf)
+			if s == 0 || err != nil {
+				return
+			}
+			c.sz = s
+		}
+		data, err := pack.ReadData(c.buf, c.sz)
+		if data == nil || err != nil {
+			return
+		}
+		c.sz = 0
+		_, data_bytes, err := pack.Unpack(data)
+		if err != nil {
+			log.Error("dest=%v unpack data error=%v", c.addr, err)
+			return
+		}
+		msg := string(data_bytes)
+		mmsg := strings.Split(msg, ",")
+
+		start_nano_cli, _ := strconv.ParseInt(mmsg[0], 10, 64)
+		// start_nano_srv, _ := strconv.ParseInt(mmsg[1], 10, 64)
+
+		// start_nano, ok := c.get_stat(sessid)
+		// if !ok {
+		// 	log.Error("dest=%v no session=%v", c.addr, sessid)
+		// 	return
+		// }
+		elapse_nano := time.Now().UnixNano() - start_nano_cli
+		log.Info("elapse=%vms", elapse_nano/1000/1000)
+		// c.del_stat(sessid)
+
+		atomic.AddInt64(&t_elapse, elapse_nano/1000/1000)
+		atomic.AddInt64(&t_times, 1)
+		times := atomic.LoadInt64(&t_times)
+		if times >= 1000 {
+			log.Error("avg_elapse=%d", atomic.LoadInt64(&t_elapse)/atomic.LoadInt64(&t_times))
+			atomic.StoreInt64(&t_elapse, 0)
+			atomic.StoreInt64(&t_times, 0)
+		}
 	}
 }
 func (c *Client) recv_msg() {
@@ -110,46 +158,7 @@ func (c *Client) recv_msg() {
 		return
 	}
 	c.buf.Write(buf[:n])
-	if c.sz == 0 {
-		s, err := pack.ReadSize(c.buf)
-		if s == 0 || err != nil {
-			return
-		}
-		c.sz = s
-	}
-	data, err := pack.ReadData(c.buf, c.sz)
-	if data == nil || err != nil {
-		return
-	}
-	c.sz = 0
-	sessid, data_bytes, err := pack.Unpack(data)
-	if err != nil {
-		log.Error("dest=%v unpack data error=%v", c.addr, err)
-		return
-	}
-	msg := string(data_bytes)
-	mmsg := strings.Split(msg, ",")
-
-	start_nano_cli, _ := strconv.ParseInt(mmsg[1], 10, 64)
-	// start_nano_srv, _ := strconv.ParseInt(mmsg[1], 10, 64)
-
-	// start_nano, ok := c.get_stat(sessid)
-	// if !ok {
-	// 	log.Error("dest=%v no session=%v", c.addr, sessid)
-	// 	return
-	// }
-	elapse_nano := time.Now().UnixNano() - start_nano_cli
-	log.Info("elapse=%vms", elapse_nano/1000/1000)
-	c.del_stat(sessid)
-
-	atomic.AddInt64(&t_elapse, elapse_nano/1000/1000)
-	atomic.AddInt64(&t_times, 1)
-	times := atomic.LoadInt64(&t_times)
-	if times >= 1000 {
-		log.Error("avg_elapse=%d", atomic.LoadInt64(&t_elapse)/atomic.LoadInt64(&t_times))
-		atomic.StoreInt64(&t_elapse, 0)
-		atomic.StoreInt64(&t_times, 0)
-	}
+	c.proc_buf()
 }
 
 /*
@@ -226,6 +235,16 @@ func (c *Client) Start(ctx context.Context) {
 	}()
 
 	log.Info("client started")
+}
+
+// var stat_ch chan Stat
+
+func StartStat() {
+	go func() {
+		for {
+
+		}
+	}()
 }
 
 func NewClient(addr string) *Client {
