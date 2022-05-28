@@ -24,14 +24,6 @@ func main() {
 
 	ctx, cancel_func := context.WithCancel(context.Background())
 
-	// login_mod := &login.LoginMod{}
-	// router.Reg(login_mod)
-	// m := make(map[string]interface{})
-	// m["acc"] = "123"
-	// m["pwd"] = "123"
-	// js_body, _ := json.Marshal(m)
-	// router.Call("Login", string(js_body))
-
 	pprof_port := 8889
 
 	switch *app {
@@ -43,11 +35,19 @@ func main() {
 			cli.Start(ctx)
 		}
 		break
+	case "udp_cli":
+		log.InitLog("console", "HOUR", log.LV_DEBUG)
+		cli := client.NewUDPClient()
+		cli.Start()
 	case "service":
 		log.InitLog(*log_filename, "HOUR", log.LV_ERROR)
 		srv := service.NewService(*addr)
 		srv.Start(ctx)
 		break
+	case "udp_ser":
+		log.InitLog("console", "HOUR", log.LV_DEBUG)
+		srv := service.NewUDPService(":7001")
+		srv.StartUDP()
 	default:
 		flag.Usage()
 		return
